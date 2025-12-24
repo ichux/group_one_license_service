@@ -1,0 +1,9 @@
+# Production dependencies - includes base
+-r base.txt
+
+# Production server
+gunicorn>=22.0,<23.0
+uvicorn>=0.30,<1.0
+
+# Monitoring
+sentry-sdk>=1.39,<2.0
