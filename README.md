@@ -247,6 +247,10 @@ license_service/
 - Security headers in production (HSTS, X-Frame-Options, etc.)
 - Bandit security scanning in CI
 
+## Documentation
+
+For detailed architectural decisions, design rationale, and implementation explanations, see [Explanation.md](docs/Explanation.md).
+
 ## License
 
 MIT
