@@ -1,0 +1,90 @@
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-file: "5"
+    max-size: "10m"
+
+x-common-env: &common-env
+  - DJANGO_SETTINGS_MODULE=config.settings.dev
+  - DEBUG=true
+  - SECRET_KEY=41ad4a24c428a39454cda39d1a18dd1
+  - DB_NAME=license_service
+  - DB_USER=postgres
+  - DB_PASSWORD=postgres
+  - DB_HOST=db
+  - DB_PORT=5432
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: dev.Dockerfile
+
+x-app-volumes: &app-volumes
+  - .:/app
+  - pip-cache:/root/.cache/pip
+
+x-common-app: &common-app
+  <<: *app-build
+  volumes: *app-volumes
+  logging: *logging
+
+services:
+  # Application service
+  app:
+    <<: *common-app
+    ports:
+      - "8000:8000"
+    environment: *common-env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python manage.py runserver 0.0.0.0:8000
+    restart: unless-stopped
+
+  # PostgreSQL database
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=license_service
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *logging
+
+  # Run tests in CI mode
+  test:
+    <<: *common-app
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.ci
+    command: >
+      sh -c "
+        python manage.py migrate --noinput &&
+        pytest --cov=apps --cov-report=term-missing
+      "
+    profiles:
+      - test
+
+  # Run linting
+  lint:
+    <<: *common-app
+    command: >
+      sh -c "
+        black --check . &&
+        isort --check --profile black . &&
+        ruff check .
+      "
+    profiles:
+      - lint
+
+volumes:
+  postgres-data:
+  pip-cache:
